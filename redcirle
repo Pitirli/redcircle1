@@ -1,0 +1,93 @@
+from ultralytics import YOLO
+import cv2
+import numpy as np
+from PIL import Image as PILImage, ImageTk
+from tkinter import *
+import tkinter as tk
+from picamera2 import Picamera2, Preview
+
+# YOLO modelini yükle
+model = YOLO("C:/Users/YUSUF ALPTUG PITIRLI/PycharmProjects/YOLOv8/best (4).pt")
+
+# PiCamera2 başlat
+picam2 = Picamera2()
+picam2.preview_configuration.main.size = (640, 480)
+picam2.preview_configuration.main.format = "RGB888"
+picam2.preview_configuration.align()
+
+# Kamerayı başlat
+picam2.start()
+
+root = Tk()
+root.title('RedCircle')
+
+frame = Frame(root)
+frame.pack(padx=250, pady=250)
+
+video_recording = False
+
+def resize_image(image, width, height):
+    return cv2.resize(image, (width, height))
+
+def start_video_recording():
+    global video_recording
+    if video_recording:
+        video_recording = False
+        q2.config(text="Kamerayı Aç")
+    else:
+        video_recording = True
+        q2.config(text="Kamerayı Kapat")
+        while video_recording:
+            frame = picam2.capture_array()
+
+            hsvImage = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+            lowerLimit1 = np.array([0, 160, 160], dtype=np.uint8)
+            upperLimit1 = np.array([10, 255, 255], dtype=np.uint8)
+            mask1 = cv2.inRange(hsvImage, lowerLimit1, upperLimit1)
+
+            lowerLimit2 = np.array([175, 160, 160], dtype=np.uint8)
+            upperLimit2 = np.array([180, 255, 255], dtype=np.uint8)
+            mask2 = cv2.inRange(hsvImage, lowerLimit2, upperLimit2)
+
+            mask = mask1 + mask2
+            blurred = cv2.GaussianBlur(mask, (15, 15), 0)
+
+            circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=50, param1=50, param2=30,
+                                       minRadius=10, maxRadius=100)
+
+            if circles is not None:
+                circles = np.round(circles[0, :]).astype("int")
+                for (x, y, r) in circles:
+                    cv2.circle(frame, (x, y), r, (0, 0, 255), 4)  # Kırmızı çember
+                    cv2.circle(frame, (x, y), 5, (255, 0, 0), -1)  # Mavi merkez
+
+            result = model(frame)
+            cizilmis_görüntü = result[0].plot()
+
+            img_resized = resize_image(cizilmis_görüntü, 500, 300)
+            img_rgb = cv2.cvtColor(img_resized, cv2.COLOR_BGR2RGB)
+            imgtk = ImageTk.PhotoImage(image=PILImage.fromarray(img_rgb))
+            my_label.config(image=imgtk)
+            my_label.image = imgtk
+            root.update()
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        my_label.config(image=my_imgtk)
+        my_label.image = my_imgtk
+
+# Başlangıç görüntüsü yükle
+my_img = PILImage.open("C:/Users/YUSUF ALPTUG PITIRLI/PycharmProjects/YOLOv8/Ekran görüntüsü 2024-09-02 132834.png")
+my_img_resized = my_img.resize((500, 300))
+my_imgtk = ImageTk.PhotoImage(image=my_img_resized)
+my_label = Label(frame, image=my_imgtk)
+my_label.pack()
+
+q2 = Button(frame, text="Start Video Recording", fg="purple", command=start_video_recording)
+q2.pack()
+
+root.mainloop()
+
+picam2.close()
