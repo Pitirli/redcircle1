@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image as PILImage, ImageTk
 from tkinter import *
 import tkinter as tk
-from picamera2 import Picamera2, Preview
+from picamera2 import Picamera2, Preview  # PiCamera2 modülü eklendi
 
 # YOLO modelini yükle
 model = YOLO("C:/Users/YUSUF ALPTUG PITIRLI/PycharmProjects/YOLOv8/best (4).pt")
@@ -33,11 +33,12 @@ def start_video_recording():
     global video_recording
     if video_recording:
         video_recording = False
-        q2.config(text="Kamerayı Aç")
+        q2.config(text="KamerayıAc")
     else:
         video_recording = True
-        q2.config(text="Kamerayı Kapat")
+        q2.config(text="KamerayıKapat")
         while video_recording:
+            # OpenCV yerine picamera2'den görüntü alıyoruz
             frame = picam2.capture_array()
 
             hsvImage = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -51,6 +52,7 @@ def start_video_recording():
             mask2 = cv2.inRange(hsvImage, lowerLimit2, upperLimit2)
 
             mask = mask1 + mask2
+
             blurred = cv2.GaussianBlur(mask, (15, 15), 0)
 
             circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=50, param1=50, param2=30,
@@ -59,8 +61,8 @@ def start_video_recording():
             if circles is not None:
                 circles = np.round(circles[0, :]).astype("int")
                 for (x, y, r) in circles:
-                    cv2.circle(frame, (x, y), r, (0, 0, 255), 4)  # Kırmızı çember
-                    cv2.circle(frame, (x, y), 5, (255, 0, 0), -1)  # Mavi merkez
+                    cv2.circle(frame, (x, y), r, (0, 0, 255), 4)  # Red circle
+                    cv2.circle(frame, (x, y), 5, (255, 0, 0), -1)  # Blue center
 
             result = model(frame)
             cizilmis_görüntü = result[0].plot()
@@ -78,7 +80,6 @@ def start_video_recording():
         my_label.config(image=my_imgtk)
         my_label.image = my_imgtk
 
-# Başlangıç görüntüsü yükle
 my_img = PILImage.open("C:/Users/YUSUF ALPTUG PITIRLI/PycharmProjects/YOLOv8/Ekran görüntüsü 2024-09-02 132834.png")
 my_img_resized = my_img.resize((500, 300))
 my_imgtk = ImageTk.PhotoImage(image=my_img_resized)
@@ -89,5 +90,8 @@ q2 = Button(frame, text="Start Video Recording", fg="purple", command=start_vide
 q2.pack()
 
 root.mainloop()
+
+picam2.close()  # PiCamera2 kapanışı
+
 
 picam2.close()
